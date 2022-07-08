@@ -3,7 +3,7 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "./newNFT.sol";
-import "./Ticket.sol";
+//import "./Ticket.sol";
 import "hardhat/console.sol";
 
 /** 
@@ -12,7 +12,24 @@ import "hardhat/console.sol";
  */
 
 contract Try {
-   
+
+    /*struct Ticket {
+        address owner;
+        uint[6] numbers;
+        uint round;
+    }*/
+
+    struct Ticket {
+        address owner;
+        uint number1;
+        uint number2;
+        uint number3;
+        uint number4;
+        uint number5;
+        uint jolly;
+        uint round;
+    }
+
     uint public K = 8;
     uint public m;
     uint public price = 30000000 gwei;  //approximately 50€
@@ -22,7 +39,9 @@ contract Try {
 
     uint public roundNumber = 0;
     uint[6] public drawnNumbers;
+    uint[] public class;
     uint public winnersLen;
+    uint public ticketsLen;
 
     bool public activeRound = false;
     bool public prizesDistributed;
@@ -35,9 +54,10 @@ contract Try {
 
     Ticket[] public tickets; 
 
-    event RoundStarted();
-    event RoundClosed(uint[6] drawnNumbers, address[] winners, uint len);
+    event RoundStarted(uint roundNumber);
+    event RoundClosed(uint[6] drawnNumbers, address[] winners, uint[] class, uint len);
     event TicketBought(address owner, uint[6] ticket);  
+    event LotteryClosed();
 
     constructor () //when a new instance is created, activate a new round and initialize a lottery manager
         payable 
@@ -56,27 +76,6 @@ contract Try {
         _;
     }
 
-    function random6() //this function generate 6 random numbers 
-        checkActive
-        internal  
-        returns (bool)
-    {   //bytes32 bhash = blockhash(block.number + K);
-        bool debug = true;
-        if (debug){
-            drawnNumbers[0] = 1; drawnNumbers[1] = 2; drawnNumbers[2] = 3; drawnNumbers[3] = 4; drawnNumbers[4] = 5; drawnNumbers[5] = 6;
-        } else {
-            uint lastExtraction = uint((uint256(keccak256(abi.encode(/*blockhash(*/block.number+ K, block.difficulty, block.timestamp)))));
-            for (uint j = 0; j < 5; j++){
-                lastExtraction = uint((uint256(keccak256(abi.encode(/*abi.encode(blockhash(*/block.number + K, block.difficulty/*)*/, block.timestamp, lastExtraction))) % 69) + 1);
-                drawnNumbers[j] = lastExtraction;
-                console.log(uint(drawnNumbers[j]));
-            }
-            drawnNumbers[5] = uint((uint256(keccak256(abi.encode(/*abi.encode(blockhash(*/block.number + K, block.difficulty/*)*/, block.timestamp, lastExtraction))) % 29) + 1);  
-            console.log(drawnNumbers[5]);
-        }
-        return true;
-    } 
-
     function startNewRound (uint blocks) //start a new round
         checkActive
         public 
@@ -85,6 +84,7 @@ contract Try {
         require(!activeRound, "Lottery already open!");
         require(lotteryManager == msg.sender, "Only the lottery manager can start a new round.");
         delete tickets;
+        ticketsLen = 0;
         //delete drawnNumbers;
         //delete winners;
         m = blocks;
@@ -92,7 +92,7 @@ contract Try {
         startingBlock = block.number;
         prizesDistributed = false;
         activeRound = true;
-        emit RoundStarted();
+        emit RoundStarted(roundNumber);
         return true;
     }
 
@@ -111,11 +111,11 @@ contract Try {
         console.log(gasNow-gasleft());
 
         bool validTicket = true;
-        //bool exit = false;
+        bool exit = false;
 
         gasNow = gasleft();
 
-        /*for (uint i = 0; i < numbers.length - 1; i++){ // check if the choosen numbers are unique
+        for (uint i = 0; i < numbers.length - 1; i++){ // check if the choosen numbers are unique
             if (numbers[i] < 1 || numbers[i] > 69){
                 validTicket = false;
                 break;
@@ -134,15 +134,16 @@ contract Try {
         }
         if (numbers[5] < 1 || numbers[5] > 26){
             validTicket = false;
-        }*/
+        }
 
         console.log(gasNow-gasleft());
 
         gasNow = gasleft();
 
         require(validTicket, "Each number must be unique!");
-        Ticket newTicket = new Ticket(msg.sender, numbers, roundNumber);
+        Ticket memory newTicket = Ticket(msg.sender, numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5], roundNumber);
         tickets.push(newTicket);
+        ticketsLen = tickets.length;
         emit TicketBought(msg.sender, numbers);
     }
 
@@ -150,11 +151,23 @@ contract Try {
         checkActive
         internal
         returns (bool)
-    { 
+    {   
         require(!activeRound, "A new lottery round will start soon...");
-        random6();
+        bool debug = true;
+        if (debug){
+            drawnNumbers[0] = 1; drawnNumbers[1] = 2; drawnNumbers[2] = 3; drawnNumbers[3] = 4; drawnNumbers[4] = 5; drawnNumbers[5] = 6;
+        } else {
+            uint lastExtraction = uint((uint256(keccak256(abi.encode(/*blockhash(*/block.number+ K, block.difficulty, block.timestamp)))));
+            for (uint j = 0; j < 5; j++){
+                lastExtraction = uint((uint256(keccak256(abi.encode(/*abi.encode(blockhash(*/block.number + K, block.difficulty/*)*/, block.timestamp, lastExtraction))) % 69) + 1);
+                drawnNumbers[j] = lastExtraction;
+                console.log(uint(drawnNumbers[j]));
+            }
+            drawnNumbers[5] = uint((uint256(keccak256(abi.encode(/*abi.encode(blockhash(*/block.number + K, block.difficulty/*)*/, block.timestamp, lastExtraction))) % 29) + 1);  
+            console.log(drawnNumbers[5]);
+        }
         return true;
-    }
+    } 
     
     function givePrizes () 
         checkActive
@@ -166,68 +179,69 @@ contract Try {
         for (uint i = 0; i < tickets.length; i++){ //loop over each ticket bought
             uint count = 0;
             bool jolly = false;
-            uint[6] memory numbersPlayed = tickets[i].getNumbers();
-            for (uint j = 0; j < 6; j++){ //loop over the numbers of the tickets
-                console.log(uint(numbersPlayed[j])); 
-                for (uint x = 0; x < 6; x++){
-                    if (numbersPlayed[j] == drawnNumbers[x]){
-                        count++;
-                        break;
-                    }
+            
+            for (uint x = 0; x < 5; x++){
+                if (drawnNumbers[x] == tickets[i].number1 || drawnNumbers[x] == tickets[i].number2 || drawnNumbers[x] == tickets[i].number3 || drawnNumbers[x] == tickets[i].number4 || drawnNumbers[x] == tickets[i].number5){
+                    count++;
                 }
             }
-
-            if (numbersPlayed[5] == drawnNumbers[5]){ //checking the jolly
+            if (tickets[i].jolly == drawnNumbers[5]){ //checking the jolly
                 jolly = true;
-
             }
-            
-            address currentOwner = tickets[i].getOwner();
+            address currentOwner = tickets[i].owner;
             if (count == 5 && jolly){
                 minter.rewardWinner(currentOwner, prizes[0]);
-                winners.push(currentOwner);
                 console.log("The following address won the 1st prize: ");
                 console.log(currentOwner);
+                winners.push(currentOwner);
+                class.push(1);
                 prizes[0] = mint(0);
             } else if (count == 5 && !jolly){
                 minter.rewardWinner(currentOwner, prizes[1]);
                 winners.push(currentOwner);
+                class.push(2);
                 console.log("The following address won the 2nd prize: ");
                 console.log(currentOwner);
                 prizes[1] = mint(1);
             } else if (count == 4 && jolly){
                 minter.rewardWinner(currentOwner, prizes[2]);
                 winners.push(currentOwner);
+                class.push(3);
                 console.log("The following address won the 3rd prize: ");
                 console.log(currentOwner);
                 prizes[2] = mint(2);
             } else if ((count == 4 && !jolly) || (count == 3 && jolly)){
                 minter.rewardWinner(currentOwner, prizes[3]);
                 winners.push(currentOwner);
+                class.push(4);
                 console.log("The following address won the 3rd prize: ");
                 console.log(currentOwner);
                 prizes[3] = mint(3);
             } else if ((count == 3 && !jolly) || (count == 2 && jolly)){
                 minter.rewardWinner(currentOwner, prizes[4]);
                 winners.push(currentOwner);
+                class.push(5);
                 console.log("The following address won the 4th prize: ");
                 console.log(currentOwner);
                 prizes[4] = mint(4);
             } else if ((count == 2 && !jolly) || (count == 1 && jolly)){
                 minter.rewardWinner(currentOwner, prizes[5]);
                 winners.push(currentOwner);
+                class.push(6);
                 console.log("The following address won the 4th prize: ");
                 console.log(currentOwner);
                 prizes[5] = mint(5);
             } else if (count == 1 && !jolly){
                 minter.rewardWinner(currentOwner, prizes[6]);
                 winners.push(currentOwner);
+                class.push(7);
                 console.log("The following address won the 5th prize: ");
                 console.log(currentOwner);
                 prizes[6] = mint(6);
             } else if (count == 0 && jolly){
                 minter.rewardWinner(currentOwner, prizes[7]);
                 winners.push(currentOwner);
+                class.push(8);
                 console.log("The following address won the 5th prize: ");
                 console.log(currentOwner);
                 prizes[7] = mint(7);
@@ -235,6 +249,7 @@ contract Try {
                 console.log("The following address didn't win: ");
                 console.log(currentOwner);
             } 
+            console.log("one iteration completed");
         }
         winnersLen = winners.length;
         prizesDistributed = true;
@@ -246,7 +261,7 @@ contract Try {
         internal 
         returns (uint256 tokenId)
     {
-        require(0 < index && index <= 7, "Index out of bounds.");
+        require(0 <= index && index <= 7, "Index out of bounds.");
         return minter.awardItem(index);
     }
 
@@ -257,7 +272,7 @@ contract Try {
         returns (bool)
     {
         for (uint i = 0; i < tickets.length; i++){
-            address currentOwner = tickets[i].getOwner();
+            address currentOwner = tickets[i].owner;
             payable(currentOwner).transfer(price);
         }
         return true;
@@ -273,6 +288,7 @@ contract Try {
         require(lotteryManager == msg.sender, "Only the lottery manager can close a round.");
         delete drawnNumbers;
         delete winners;
+        delete class;
 
         activeRound = false;
         if (block.number < startingBlock + m){
@@ -283,7 +299,7 @@ contract Try {
             givePrizes(); //give prizes
         }
 
-        emit RoundClosed(drawnNumbers, winners, winnersLen);
+        emit RoundClosed(drawnNumbers, winners, class, winnersLen);
         return true;
     }
 
@@ -292,6 +308,7 @@ contract Try {
     {
         require(msg.sender == lotteryManager, "Only the lottery manager can close the contract.");
         isActive = false;
+        emit LotteryClosed();
     }
 
 }
