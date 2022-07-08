@@ -32,3 +32,4 @@ WARNING: tested on Google Chrome
 - - run the lite server with  ``npm run dev``
 - - Go to the browser, open Metamask, connect Metamask to ganache and to the DApp (there should be a button "connect to DApp"), and import an account by copying and pasting a ganache private key under "import account"
 - - Play with the (limited) DApp and check out the transactions outcomes
+# LotteryDapp
